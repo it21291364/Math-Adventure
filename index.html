@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fun Math for Kids</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Fredoka One', cursive;
+            background-color: #6495ed; /* Fallback color */
+            background-image: linear-gradient(135deg, #a2facf 0%, #6495ed 100%);
+            user-select: none;
+            overflow: hidden;
+        }
+        .operation-card, .choice-button, .modal, .table-button {
+            border-radius: 2rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.2s;
+        }
+        .operation-card:hover, .choice-button:hover, .table-button:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.2), 0 12px 12px rgba(0,0,0,0.15);
+        }
+        .choice-button, .table-button {
+             background-color: white;
+        }
+        .symbol {
+            font-size: 4rem; /* Slightly smaller for better fit */
+            line-height: 1;
+        }
+        .feedback-correct {
+            background-color: #4ade80 !important; /* green-400 */
+            animation: bounce 0.6s ease;
+        }
+        .feedback-wrong {
+            background-color: #f87171 !important; /* red-400 */
+            animation: shake 0.5s ease;
+        }
+        .correct-answer-highlight {
+            background-color: #4ade80 !important; /* green-400 */
+            animation: shake 0.8s ease infinite;
+        }
+        .question-pop-in {
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        .title-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        .star {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: gold;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            animation: sparkle 1s forwards;
+            pointer-events: none;
+            z-index: 100;
+        }
+        @keyframes sparkle {
+            0% { transform: scale(0) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1.5) rotate(360deg); opacity: 0; }
+        }
+        
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.4;
+        }
+        .animate-blob-1 { animation: blob-anim 15s infinite alternate; }
+        .animate-blob-2 { animation: blob-anim 12s infinite alternate-reverse; }
+        .animate-blob-3 { animation: blob-anim 18s infinite alternate; }
+
+        @keyframes blob-anim {
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.5) translate(10vw, -15vh); }
+        }
+        
+        /* Styles for the new Tables screen */
+        .table-button.active {
+            background-color: #fbbf24; /* amber-400 */
+            color: white;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 relative">
+
+    <!-- Animated Background Blobs -->
+    <div class="blob w-96 h-96 bg-blue-300 top-0 -left-16 animate-blob-1"></div>
+    <div class="blob w-72 h-72 bg-green-300 bottom-0 right-0 animate-blob-2"></div>
+    <div class="blob w-64 h-64 bg-yellow-200 bottom-16 left-16 animate-blob-3"></div>
+
+    <!-- Fullscreen Button -->
+    <button id="fullscreen-btn" class="fixed top-4 right-4 bg-white/80 text-gray-700 p-3 rounded-full shadow-lg hover:bg-white transition z-30" title="Toggle Fullscreen">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+    </button>
+
+    <!-- Main Menu Screen -->
+    <div id="menu-screen" class="text-center bg-white/25 backdrop-blur-lg p-6 sm:p-10 rounded-[3rem] shadow-2xl z-10">
+        <h1 class="text-5xl md:text-7xl text-white font-bold mb-2 drop-shadow-lg title-float">Math Adventure!</h1>
+        <p class="text-xl md:text-2xl text-white/90 mb-12 drop-shadow-md">Choose a game to play!</p>
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+            <!-- Operation Cards -->
+            <div id="op-add" class="operation-card bg-gradient-to-br from-green-400 to-green-500 p-4 md:p-8 cursor-pointer text-white"><div class="symbol">+</div><div class="text-lg sm:text-xl md:text-2xl font-bold mt-2">Addition</div></div>
+            <div id="op-subtract" class="operation-card bg-gradient-to-br from-blue-400 to-blue-500 p-4 md:p-8 cursor-pointer text-white"><div class="symbol">-</div><div class="text-lg sm:text-xl md:text-2xl font-bold mt-2">Subtraction</div></div>
+            <div id="op-multiply" class="operation-card bg-gradient-to-br from-yellow-400 to-yellow-500 p-4 md:p-8 cursor-pointer text-white"><div class="symbol">×</div><div class="text-lg sm:text-xl md:text-2xl font-bold mt-2">Multiply</div></div>
+            <div id="op-divide" class="operation-card bg-gradient-to-br from-red-400 to-red-500 p-4 md:p-8 cursor-pointer text-white"><div class="symbol">÷</div><div class="text-lg sm:text-xl md:text-2xl font-bold mt-2">Division</div></div>
+            <div id="op-tables" class="operation-card bg-gradient-to-br from-purple-400 to-purple-500 p-4 md:p-8 cursor-pointer text-white"><div class="symbol">#</div><div class="text-lg sm:text-xl md:text-2xl font-bold mt-2">Tables</div></div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden w-full max-w-4xl mx-auto text-center z-10">
+        <div class="relative w-full flex justify-between items-center mb-8">
+            <button id="back-button" class="bg-white/80 text-gray-700 px-6 py-3 rounded-full text-xl shadow-lg hover:bg-white transition z-20">← Back</button>
+            <h2 id="game-title" class="text-4xl md:text-6xl text-white font-bold drop-shadow-lg absolute w-full text-center -z-10">Addition Fun!</h2>
+            <div id="score-display" class="bg-white/80 text-yellow-500 px-6 py-3 rounded-full text-2xl shadow-lg">Score: 0 ⭐</div>
+        </div>
+        
+        <div id="question-area" class="bg-white/80 p-8 rounded-3xl shadow-xl flex items-center justify-center space-x-4 md:space-x-8 text-5xl md:text-7xl font-bold text-gray-800 mb-8 min-h-[150px]">
+            <div id="num1-visual" class="flex flex-wrap gap-2 justify-center"></div>
+            <span id="operator-symbol" class="mx-2"></span>
+            <div id="num2-visual" class="flex flex-wrap gap-2 justify-center"></div>
+            <span>=</span>
+            <span class="text-blue-500">?</span>
+        </div>
+
+        <div id="choices-area" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+    </div>
+
+    <!-- Tables Practice Screen -->
+    <div id="tables-screen" class="hidden w-full max-w-4xl mx-auto text-center z-10">
+        <div class="relative w-full flex justify-between items-center mb-8">
+            <button id="tables-back-button" class="bg-white/80 text-gray-700 px-6 py-3 rounded-full text-xl shadow-lg hover:bg-white transition z-20">← Back</button>
+            <h2 class="text-4xl md:text-6xl text-white font-bold drop-shadow-lg absolute w-full text-center -z-10">Tables Practice</h2>
+        </div>
+        <div class="bg-white/25 backdrop-blur-lg p-6 rounded-[2rem] shadow-xl">
+            <p class="text-white text-2xl mb-4">Select a table to practice:</p>
+            <div id="table-selection-area" class="flex flex-wrap justify-center gap-3 mb-6">
+                <!-- Table buttons will be generated here -->
+            </div>
+            <div id="table-question-area" class="hidden bg-white/80 p-8 rounded-3xl shadow-xl text-5xl md:text-7xl font-bold text-gray-800 mb-6">
+                <span id="table-num1">5</span>
+                <span class="mx-2">×</span>
+                <span id="table-num2">3</span>
+                <span>=</span>
+                <span class="text-blue-500">?</span>
+            </div>
+            <div id="table-choices-area" class="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6"></div>
+            <div id="table-feedback-container" class="h-14 mt-4 flex items-center justify-center">
+                <div id="table-feedback" class="text-3xl text-white font-bold px-4 py-1 transition-all duration-300"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Feedback -->
+    <div id="feedback-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div id="modal-content" class="modal text-center p-12 transform transition-transform duration-300 scale-90">
+            <h3 id="modal-text" class="text-6xl font-bold"></h3>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const menuScreen = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const tablesScreen = document.getElementById('tables-screen');
+        const backButton = document.getElementById('back-button');
+        const tablesBackButton = document.getElementById('tables-back-button');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const gameTitle = document.getElementById('game-title');
+        const scoreDisplay = document.getElementById('score-display');
+        const questionArea = document.getElementById('question-area');
+        const num1Visual = document.getElementById('num1-visual');
+        const operatorSymbol = document.getElementById('operator-symbol');
+        const num2Visual = document.getElementById('num2-visual');
+        const choicesArea = document.getElementById('choices-area');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalText = document.getElementById('modal-text');
+        
+        // Tables screen elements
+        const tableSelectionArea = document.getElementById('table-selection-area');
+        const tableQuestionArea = document.getElementById('table-question-area');
+        const tableNum1 = document.getElementById('table-num1');
+        const tableNum2 = document.getElementById('table-num2');
+        const tableChoicesArea = document.getElementById('table-choices-area');
+        const tableFeedbackContainer = document.getElementById('table-feedback-container');
+        const tableFeedback = document.getElementById('table-feedback');
+
+        // --- Game State ---
+        let currentOperation = null;
+        let correctAnswer = 0;
+        let score = 0;
+        let currentTable = 0;
+        let tableMultiplier = 0;
+        const EMOJIS = ['🍎', '🍊', '🍓', '⭐', '❤️', '😊', '🚀', '🦕'];
+
+        // --- Sound Synthesis ---
+        const synth = new Tone.Synth().toDestination();
+        const correctSound = () => {
+            synth.triggerAttackRelease("C5", "8n", Tone.now());
+            synth.triggerAttackRelease("E5", "8n", Tone.now() + 0.2);
+            synth.triggerAttackRelease("G5", "8n", Tone.now() + 0.4);
+        };
+        const wrongSound = () => {
+            synth.triggerAttackRelease("C3", "4n");
+        };
+        const clickSound = () => {
+            const synthClick = new Tone.MembraneSynth().toDestination();
+            synthClick.triggerAttackRelease("C2", "8n");
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('op-add').addEventListener('click', () => startGame('add'));
+        document.getElementById('op-subtract').addEventListener('click', () => startGame('subtract'));
+        document.getElementById('op-multiply').addEventListener('click', () => startGame('multiply'));
+        document.getElementById('op-divide').addEventListener('click', () => startGame('divide'));
+        document.getElementById('op-tables').addEventListener('click', startTablesGame);
+        backButton.addEventListener('click', showMenu);
+        tablesBackButton.addEventListener('click', showMenu);
+        fullscreenBtn.addEventListener('click', toggleFullScreen);
+
+        // --- Functions ---
+        
+        function toggleFullScreen() {
+            clickSound();
+            try {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            } catch (e) {
+                console.warn("Fullscreen API failed:", e);
+            }
+        }
+
+        function startGame(operation) {
+            clickSound();
+            currentOperation = operation;
+            score = 0;
+            updateScoreDisplay();
+            menuScreen.classList.add('hidden');
+            tablesScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            const titles = {
+                add: 'Addition Fun!',
+                subtract: 'Subtraction Time!',
+                multiply: 'Multiply Magic!',
+                divide: 'Division Dash!'
+            };
+            gameTitle.textContent = titles[operation];
+            
+            generateQuestion();
+        }
+
+        function startTablesGame() {
+            clickSound();
+            menuScreen.classList.add('hidden');
+            gameScreen.classList.add('hidden');
+            tablesScreen.classList.remove('hidden');
+            tableQuestionArea.classList.add('hidden');
+            tableChoicesArea.innerHTML = '';
+            tableFeedback.textContent = '';
+            tableFeedbackContainer.classList.remove('bg-green-500/80', 'bg-red-500/80', 'rounded-full');
+            populateTableSelection();
+        }
+
+        function showMenu() {
+            clickSound();
+            gameScreen.classList.add('hidden');
+            tablesScreen.classList.add('hidden');
+            menuScreen.classList.remove('hidden');
+            currentOperation = null;
+        }
+
+        function populateTableSelection() {
+            tableSelectionArea.innerHTML = '';
+            for (let i = 2; i <= 15; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.classList.add('table-button', 'w-14', 'h-14', 'text-2xl', 'font-bold', 'text-gray-700');
+                button.addEventListener('click', () => {
+                    currentTable = i;
+                    document.querySelectorAll('.table-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    generateTableQuestion();
+                });
+                tableSelectionArea.appendChild(button);
+            }
+        }
+
+        function generateTableQuestion() {
+            tableFeedbackContainer.classList.remove('bg-green-500/80', 'bg-red-500/80', 'rounded-full');
+            tableFeedback.textContent = '';
+            tableQuestionArea.classList.remove('hidden');
+            tableMultiplier = Math.floor(Math.random() * 10) + 1;
+            tableNum1.textContent = currentTable;
+            tableNum2.textContent = tableMultiplier;
+            correctAnswer = currentTable * tableMultiplier;
+            
+            tableChoicesArea.innerHTML = '';
+            let choices = [correctAnswer];
+            
+            // Generate unique wrong answers
+            while (choices.length < 4) {
+                let wrongAnswer;
+                // Try different approaches to get varied wrong answers
+                if (Math.random() > 0.5) {
+                    // Add or subtract a small random number
+                    const offset = Math.floor(Math.random() * 4) + 1;
+                    wrongAnswer = Math.max(1, correctAnswer + (Math.random() > 0.5 ? offset : -offset));
+                } else {
+                    // Multiply by a different number
+                    const wrongMultiplier = Math.max(1, tableMultiplier + (Math.random() > 0.5 ? 1 : -1));
+                    wrongAnswer = currentTable * wrongMultiplier;
+                }
+                
+                // Ensure the wrong answer is positive, unique, and not equal to the correct answer
+                if (wrongAnswer > 0 && !choices.includes(wrongAnswer)) {
+                    choices.push(wrongAnswer);
+                }
+                
+                // Safety net to prevent infinite loops
+                if (choices.length === 1 && choices.length < 4) {
+                    choices.push(correctAnswer + 1);
+                    choices.push(correctAnswer - 1);
+                    choices.push(correctAnswer + 2);
+                    break;
+                }
+            }
+
+            choices.sort(() => Math.random() - 0.5);
+
+            choices.forEach(choice => {
+                const button = document.createElement('div');
+                button.classList.add('choice-button', 'p-6', 'cursor-pointer', 'text-gray-800', 'text-4xl', 'md:text-5xl', 'font-bold');
+                button.textContent = choice;
+                button.addEventListener('click', () => checkTableAnswer(choice, button));
+                tableChoicesArea.appendChild(button);
+            });
+        }
+
+        function checkTableAnswer(selectedAnswer, clickedButton) {
+            if (selectedAnswer === correctAnswer) {
+                correctSound();
+                tableFeedbackContainer.classList.remove('bg-red-500/80', 'rounded-full');
+                tableFeedbackContainer.classList.add('bg-green-500/80', 'rounded-full');
+                tableFeedback.textContent = 'Correct! 😊';
+
+                Array.from(tableChoicesArea.children).forEach(btn => {
+                    btn.style.pointerEvents = 'none';
+                    btn.classList.remove('feedback-wrong', 'correct-answer-highlight');
+                });
+                clickedButton.classList.remove('correct-answer-highlight');
+                clickedButton.classList.add('feedback-correct');
+                
+                setTimeout(() => {
+                    generateTableQuestion();
+                }, 1500);
+
+            } else {
+                wrongSound();
+                tableFeedbackContainer.classList.remove('bg-green-500/80');
+                tableFeedbackContainer.classList.add('bg-red-500/80', 'rounded-full');
+                tableFeedback.textContent = 'Not quite! The wiggling one is correct. Try it!';
+                
+                Array.from(tableChoicesArea.children).forEach(btn => {
+                    btn.style.pointerEvents = 'none';
+                });
+
+                clickedButton.classList.add('feedback-wrong');
+                
+                Array.from(tableChoicesArea.children).forEach(btn => {
+                    if (parseInt(btn.textContent) === correctAnswer) {
+                        btn.classList.add('correct-answer-highlight');
+                        btn.style.pointerEvents = 'auto';
+                    }
+                });
+            }
+        }
+
+        function generateQuestion() {
+            questionArea.classList.remove('question-pop-in');
+            void questionArea.offsetWidth;
+            questionArea.classList.add('question-pop-in');
+
+            let num1, num2;
+            const maxNum = 10;
+            const selectedEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+
+            switch (currentOperation) {
+                case 'add':
+                    num1 = Math.floor(Math.random() * (maxNum / 2)) + 1;
+                    num2 = Math.floor(Math.random() * (maxNum / 2)) + 1;
+                    correctAnswer = num1 + num2;
+                    operatorSymbol.textContent = '+';
+                    break;
+                case 'subtract':
+                    num1 = Math.floor(Math.random() * (maxNum - 2)) + 3;
+                    num2 = Math.floor(Math.random() * (num1 - 2)) + 1;
+                    correctAnswer = num1 - num2;
+                    operatorSymbol.textContent = '-';
+                    break;
+                case 'multiply':
+                    num1 = Math.floor(Math.random() * 4) + 2;
+                    num2 = Math.floor(Math.random() * 4) + 1;
+                    correctAnswer = num1 * num2;
+                    operatorSymbol.textContent = '×';
+                    break;
+                case 'divide':
+                    // Ensure division problems result in whole numbers
+                    correctAnswer = Math.floor(Math.random() * 4) + 2;
+                    num2 = Math.floor(Math.random() * 3) + 2;
+                    num1 = correctAnswer * num2;
+                    operatorSymbol.textContent = '÷';
+                    break;
+            }
+
+            num1Visual.innerHTML = `<span class="text-4xl">${selectedEmoji.repeat(num1)}</span>`;
+            num2Visual.innerHTML = `<span class="text-4xl">${selectedEmoji.repeat(num2)}</span>`;
+            
+            generateChoices();
+        }
+
+        function generateChoices() {
+            choicesArea.innerHTML = '';
+            let choices = [correctAnswer];
+            
+            // Generate unique wrong answers with more variety
+            while (choices.length < 4) {
+                let wrongChoice;
+                
+                // Use different methods to generate wrong answers
+                if (Math.random() > 0.5) {
+                    // Add or subtract a small number
+                    const offset = Math.floor(Math.random() * 3) + 1;
+                    wrongChoice = correctAnswer + (Math.random() > 0.5 ? offset : -offset);
+                } else {
+                    // Multiply or divide by a small number
+                    const factor = Math.floor(Math.random() * 2) + 1;
+                    wrongChoice = Math.random() > 0.5 ? correctAnswer * factor : Math.round(correctAnswer / factor);
+                }
+                
+                // Ensure the wrong choice is positive, unique, and not equal to the correct answer
+                if (wrongChoice > 0 && !choices.includes(wrongChoice) && wrongChoice !== correctAnswer) {
+                    choices.push(wrongChoice);
+                }
+                
+                // Safety net to prevent infinite loops
+                if (choices.length === 1 && choices.length < 4) {
+                    choices.push(correctAnswer + 1);
+                    choices.push(correctAnswer - 1);
+                    choices.push(correctAnswer + 2);
+                    break;
+                }
+            }
+
+            choices.sort(() => Math.random() - 0.5);
+
+            choices.forEach(choice => {
+                const button = document.createElement('div');
+                button.classList.add('choice-button', 'p-8', 'cursor-pointer', 'text-gray-800', 'text-5xl', 'md:text-6xl', 'font-bold');
+                button.textContent = choice;
+                button.addEventListener('click', () => checkAnswer(choice, button));
+                choicesArea.appendChild(button);
+            });
+        }
+
+        function checkAnswer(selectedAnswer, clickedButton) {
+            if (selectedAnswer === correctAnswer) {
+                correctSound();
+                
+                const isCorrection = choicesArea.querySelector('.feedback-wrong');
+                if (!isCorrection) {
+                    score++;
+                    updateScoreDisplay();
+                }
+                
+                showFeedback(true, 'Correct! 😊');
+                createSparkles(clickedButton);
+
+                Array.from(choicesArea.children).forEach(btn => {
+                    btn.style.pointerEvents = 'none';
+                    btn.classList.remove('feedback-wrong', 'correct-answer-highlight');
+                });
+                clickedButton.classList.add('feedback-correct');
+
+                setTimeout(() => {
+                    hideFeedback();
+                    generateQuestion();
+                }, 1500);
+
+            } else {
+                wrongSound();
+                showFeedback(false, 'Almost! Give the wiggling one a try.');
+                
+                Array.from(choicesArea.children).forEach(btn => {
+                    btn.style.pointerEvents = 'none';
+                });
+
+                clickedButton.classList.add('feedback-wrong');
+                
+                Array.from(choicesArea.children).forEach(btn => {
+                    if (parseInt(btn.textContent) === correctAnswer) {
+                        btn.classList.add('correct-answer-highlight');
+                        btn.style.pointerEvents = 'auto';
+                    }
+                });
+                
+                setTimeout(() => {
+                    hideFeedback();
+                }, 1500);
+            }
+        }
+        
+        function updateScoreDisplay() {
+            scoreDisplay.innerHTML = `Score: ${score} ⭐`;
+        }
+
+        function showFeedback(isCorrect, customText) {
+            feedbackModal.classList.remove('hidden');
+            modalContent.classList.remove('scale-90', 'bg-green-400', 'bg-red-400');
+            modalContent.classList.add('scale-100');
+
+            if (isCorrect) {
+                modalText.textContent = customText || 'Correct! 😊';
+                modalContent.classList.add('bg-green-400', 'text-white');
+            } else {
+                modalText.textContent = customText || 'Try Again! 🤔';
+                modalContent.classList.add('bg-red-400', 'text-white');
+            }
+        }
+
+        function hideFeedback() {
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-90');
+            setTimeout(() => {
+                feedbackModal.classList.add('hidden');
+            }, 300);
+        }
+        
+        function createSparkles(element) {
+            const rect = element.getBoundingClientRect();
+            for (let i = 0; i < 20; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const x = Math.random() * rect.width;
+                const y = Math.random() * rect.height;
+                star.style.left = `${rect.left + window.scrollX + x}px`;
+                star.style.top = `${rect.top + window.scrollY + y}px`;
+                document.body.appendChild(star);
+                setTimeout(() => star.remove(), 1000);
+            }
+        }
+
+    </script>
+</body>
+</html>
